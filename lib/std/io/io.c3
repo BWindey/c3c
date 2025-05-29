@@ -111,6 +111,7 @@ macro String? treadline(stream = io::stdin())
 *>
 macro usz? fprint(out, x)
 {
+	defer io::stdout().flush()!!;
 	var $Type = $typeof(x);
 	$switch $Type:
 		$case String: return out.write(x);
@@ -251,6 +252,7 @@ fn void? out_putchar_fn(void* data @unused, char c) @private
 *>
 fn usz? printf(String format, args...) @format(0) @maydiscard
 {
+	defer io::stdout().flush()!!;
 	Formatter formatter;
 	formatter.init(&out_putchar_fn);
 	return formatter.vprintf(format, args);
