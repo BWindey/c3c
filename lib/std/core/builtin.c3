@@ -199,15 +199,39 @@ fn bool print_backtrace(String message, int backtraces_to_ignore, void *added_ba
 	{
 		BacktraceList? backtrace = backtrace::symbolize_backtrace(mem, backtraces);
 		if (catch backtrace) return false;
+
+		// Update ignore-count to also ignore the first traces from the panic functions
 		backtraces_to_ignore = panic_print_backtrace_count(backtrace, backtraces_to_ignore);
 		if (backtrace.len() <= backtraces_to_ignore) return false;
+
 		io::eprint("\nERROR: '");
 		io::eprint(message);
 		io::eprintn("'");
+
+		usz repetition_count = 0;
 		foreach (i, &trace : backtrace)
 		{
 			if (i < backtraces_to_ignore) continue;
-			if (trace.file.ends_with("/lib/std/core/private/main_stub.c3")) break;
+			if (trace.has_file() && trace.file.ends_with("/lib/std/core/private/main_stub.c3")) {
+				break;
+			}
+
+			// Repeating backtraces (f.e. for max recursion depth) pretty print
+			if (*trace == backtrace[i-1]) {
+				if (i + 1 < backtrace.len() && *trace == backtrace[i+1]) {
+					repetition_count += 1;
+					continue;
+				} else if (repetition_count > 0) {
+					if (trace.is_unknown()) {
+						io::eprintfn("  ... (%s repetitions of ???)", repetition_count, trace.function);
+					} else {
+						io::eprintfn("  ... (%s repetitions of %s)", repetition_count, trace.function);
+					}
+				}
+			} else {
+				repetition_count = 0;
+			}
+
 			String inline_suffix = trace.is_inline ? " [inline]" : "";
 			if (trace.is_unknown())
 			{
